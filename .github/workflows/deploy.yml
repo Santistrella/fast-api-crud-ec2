@@ -3,48 +3,30 @@ name: Deploy FastAPI to EC2
 on:
   push:
     branches:
-      - main 
+      - main
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest 
+    runs-on: ubuntu-latest
 
     steps:
-      # Paso 1: Clonar el repositorio
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
-      # Paso 2: Configurar AWS
-      - name: Set up AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-north-1
-
-      # Paso 3: Instalar dependencias
-      - name: Install dependencies
+      - name: Prepare SSH key
         run: |
-          sudo apt update
-          sudo apt install python3-pip
-          pip3 install -r requirements.txt
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > key.pem
+          chmod 600 key.pem
 
-      # Paso 4: Configurar tu servidor EC2
       - name: Deploy to EC2
         run: |
-          ssh -o StrictHostKeyChecking=no -i ${{ secrets.EC2_SSH_PRIVATE_KEY }} -v ubuntu@${{ secrets.EC2_PUBLIC_IP }} << 'EOF'
+          ssh -o StrictHostKeyChecking=no -i key.pem ubuntu@${{ secrets.EC2_PUBLIC_IP }} << 'EOF'
             cd /fast-api-crud-ec2
             git pull origin main
+            if [ ! -d "venv" ]; then
+              python3 -m venv venv
+            fi
+            source venv/bin/activate
             pip install -r requirements.txt
-            sudo systemctl restart nginx
-            python3 -m uvicorn src.main:app
+            sudo systemctl restart my-fastapi.service
           EOF
-
-      # Paso 5: Notificar estado del deploy
-      - name: Notify deployment status
-        run: |
-          if [ $? -eq 0 ]; then
-            echo "Deployment successful!"
-          else
-            echo "Deployment failed!"
-          fi
