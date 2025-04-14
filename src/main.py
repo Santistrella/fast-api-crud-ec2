@@ -25,4 +25,4 @@ app.include_router(articles.router, prefix="/api/v1", tags=["articles"])
 
 @app.get("/")
 def read_root():
-    return {"message": "Welcome to the FastAPI CRUD! - updated with ci/cd pipeline"}
+    return {"message": "Welcome to the FastAPI CRUD!"}
